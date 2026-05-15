@@ -1,0 +1,409 @@
+#!/bin/bash
+
+# Sentinel Demo & Benchmark - Evaluator Quick Reference
+# This file explains all the tools available for demonstration and benchmarking
+
+cat << 'EOF'
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║        ⚡ SENTINEL - Autonomous Production Incident Commander ⚡       ║
+║                                                                           ║
+║              Complete Demo & Benchmark Setup for Evaluators              ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+📊 AVAILABLE DEMONSTRATION TOOLS
+════════════════════════════════════════════════════════════════════════════
+
+1. WEB DASHBOARDS (Real-time Visualization)
+   ─────────────────────────────────────────
+   
+   Demo Visualization:     http://localhost:9000/demo-visualization.html
+   ├─ Real-time pipeline visualization
+   ├─ Agent status tracking (7 agents)
+   ├─ Live event log
+   ├─ One-click incident trigger
+   ├─ Benchmark runner (3 iterations)
+   └─ System statistics
+   
+   Incidents Dashboard:    http://localhost:9000/dashboard.html
+   ├─ All incidents view
+   ├─ Status filtering
+   ├─ Incident details
+   ├─ Auto-refresh (5s)
+   └─ Quick statistics
+   
+   REST API:               http://localhost:8001/api/incidents
+   ├─ JSON incident data
+   ├─ Filterable and paginable
+   ├─ Historical data access
+   └─ Real-time updates
+
+
+2. COMMAND-LINE TOOLS (Automated Testing)
+   ──────────────────────────────────────
+   
+   Benchmark Script:       ./benchmark.sh
+   ├─ System check:        ./benchmark.sh -c
+   ├─ Single incident:     ./benchmark.sh -s
+   ├─ Multi-incident:      ./benchmark.sh -m 5
+   ├─ Load test:           ./benchmark.sh -l
+   └─ Full suite:          ./benchmark.sh -f
+   
+   Demo Script:            ./demo/seed_incident.sh
+   ├─ Predefined demo incident
+   ├─ Triggers target app failure
+   ├─ Generates alert
+   └─ Runs full pipeline
+   
+   Manual Triggers:        curl commands
+   ├─ Direct webhook API
+   ├─ Batch incident creation
+   └─ Custom payload support
+
+
+3. DOCUMENTATION
+   ──────────────
+   
+   QUICK_START.md          ← Start here! (2 min read)
+   ├─ Quick commands
+   ├─ Dashboard URLs
+   ├─ Performance expectations
+   └─ Troubleshooting
+   
+   DEMO_SETUP.md           ← Detailed setup guide (10 min read)
+   ├─ Full testing procedures
+   ├─ Monitoring instructions
+   ├─ Data analysis guides
+   ├─ Advanced scenarios
+   └─ Architecture details
+   
+   EVALUATION_GUIDE.md     ← Complete reference (20 min read)
+   ├─ System architecture
+   ├─ Evaluation criteria
+   ├─ API documentation
+   ├─ Benchmark commands
+   └─ Troubleshooting
+
+
+🎯 QUICK START (Choose One)
+════════════════════════════════════════════════════════════════════════════
+
+OPTION 1: Visual Demo (Fastest)
+  1. Open: http://localhost:9000/demo-visualization.html
+  2. Click: "🎯 Trigger Demo Incident"
+  3. Watch: 7 agents process incident in real-time
+  Time: ~25 seconds
+
+OPTION 2: Benchmark Test
+  $ cd /Users/jamesjacobi/Downloads/sentinel
+  $ ./benchmark.sh -s      # Single incident
+  $ ./benchmark.sh -m 5    # 5 concurrent
+  $ ./benchmark.sh -f      # Full suite
+  Time: ~5-15 minutes
+
+OPTION 3: Predefined Demo
+  $ ./demo/seed_incident.sh
+  $ Open: http://localhost:9000/dashboard.html
+  Time: ~30 seconds
+
+
+📈 BENCHMARK SUITE CAPABILITIES
+════════════════════════════════════════════════════════════════════════════
+
+System Check:
+  $ ./benchmark.sh -c
+  ✓ Verifies all 13 services running
+  ✓ Checks connectivity
+  ✓ Returns OK/FAIL status
+
+Single Incident Test:
+  $ ./benchmark.sh -s
+  ✓ Generates normal traffic
+  ✓ Triggers failure scenario
+  ✓ Fires webhook alert
+  ✓ Measures resolution time
+  ✓ Expected: 15-25 seconds
+
+Multi-Incident Test:
+  $ ./benchmark.sh -m 5
+  ✓ Triggers 5 concurrent incidents
+  ✓ Measures total processing time
+  ✓ Tests scalability
+  ✓ Expected: ~25-30 seconds
+
+Load Test:
+  $ ./benchmark.sh -l
+  ✓ Creates 10 sequential incidents
+  ✓ Measures sustained throughput
+  ✓ Tests system endurance
+  ✓ Expected: ~150-200 seconds total
+
+Full Suite:
+  $ ./benchmark.sh -f
+  ✓ Runs all tests above
+  ✓ Generates comprehensive report
+  ✓ Outputs JSON results
+  ✓ Expected: ~10-15 minutes total
+
+
+📊 WHAT YOU'LL SEE IN THE DEMO
+════════════════════════════════════════════════════════════════════════════
+
+Stage 1: Alert Ingestion
+├─ Webhook receives alert from monitoring system
+├─ Incident created in database
+└─ Event published to Redis Streams
+
+Stage 2: Triage Agent (2-3 seconds)
+├─ Categorizes incident severity
+├─ Determines priority (P1-P4)
+└─ Routes to next stage
+
+Stage 3: Diagnostics Agent (2-3 seconds)
+├─ Fetches application logs
+├─ Analyzes system metrics
+├─ Identifies problematic component
+└─ Shares findings with RCA
+
+Stage 4: RCA Agent (2-3 seconds)
+├─ Analyzes diagnostics data
+├─ Reviews recent code changes
+├─ Identifies root cause
+└─ Confidence score calculated
+
+Stage 5: Remediation Agent (2-3 seconds)
+├─ Generates fix code patch
+├─ Writes tests
+├─ Validates fix logic
+└─ Prepares PR
+
+Stage 6: Deployment Agent (2-3 seconds)
+├─ Merges fix to main branch
+├─ Triggers CI/CD pipeline
+├─ Deploys to production
+└─ Monitors deployment
+
+Stage 7: Postmortem Agent (2-3 seconds)
+├─ Documents incident timeline
+├─ Captures all decisions
+├─ Creates summary report
+└─ Identifies learnings
+
+Stage 8: Notifier Agent
+├─ Sends incident summary
+├─ Notifies team of resolution
+├─ Updates all stakeholders
+└─ INCIDENT RESOLVED ✓
+
+
+🔗 SYSTEM SERVICES STATUS
+════════════════════════════════════════════════════════════════════════════
+
+Core Infrastructure:
+  ✓ Webhook Ingress        (8000)   - Alert ingestion
+  ✓ Dashboard API          (8001)   - REST API & WebSocket
+  ✓ PostgreSQL             (5432)   - Incident database
+  ✓ Redis                  (6379)   - Event streaming
+
+AI Agents (Workers):
+  ✓ Triage Worker                   - Incident categorization
+  ✓ Diagnostics Worker              - Log/metric analysis
+  ✓ RCA Worker                      - Root cause analysis
+  ✓ Remediation Worker              - Fix generation
+  ✓ Deployment Worker               - Auto-deployment
+  ✓ Postmortem Worker               - Documentation
+  ✓ Notifier Worker                 - Notifications
+
+Demo App:
+  ✓ Target App             (5000)   - Demo application
+
+
+📈 EXPECTED PERFORMANCE BENCHMARKS
+════════════════════════════════════════════════════════════════════════════
+
+Single Incident:
+  └─ Resolution Time: 15-25 seconds
+     ├─ Alert ingestion: <1s
+     ├─ Triage: 2-3s
+     ├─ Diagnostics: 2-3s
+     ├─ RCA: 2-3s
+     ├─ Remediation: 2-3s
+     ├─ Deployment: 2-3s
+     ├─ Postmortem: 2-3s
+     └─ Notification: <1s
+
+Multi-Incident (5 concurrent):
+  └─ Total Time: ~25-30 seconds
+     (Due to event-driven parallelization)
+
+Load Test (10 sequential):
+  └─ Total Time: ~150-200 seconds
+     (Approximately 15-20s per incident)
+
+System Throughput:
+  └─ ~3-4 incidents per minute sustained
+     (With moderate system resources)
+
+
+🔍 MONITORING & ANALYSIS
+════════════════════════════════════════════════════════════════════════════
+
+Real-Time Logs:
+  $ docker compose logs -f                    # All services
+  $ docker logs -f sentinel-triage_worker-1   # Specific agent
+  $ docker logs -f sentinel-webhook_ingress-1 # Webhook ingress
+
+System Monitoring:
+  $ docker stats                              # Resource usage
+  $ docker ps                                 # Service status
+
+Database Queries:
+  $ docker exec sentinel-postgres-1 psql -U sentinel -d sentinel
+  
+API Queries:
+  $ curl http://localhost:8001/api/incidents
+  $ curl http://localhost:8001/api/incidents/{id}
+  $ curl http://localhost:8001/health
+
+Benchmark Results:
+  $ cat benchmark_results_*.json | python3 -m json.tool
+
+
+✅ EVALUATION CHECKLIST
+════════════════════════════════════════════════════════════════════════════
+
+System Readiness:
+  □ All 13 services running (docker ps)
+  □ Webhook responding (curl http://localhost:8000/health)
+  □ Dashboard API responding (curl http://localhost:8001/health)
+  □ PostgreSQL connected
+  □ Redis streaming
+
+Functionality:
+  □ Can trigger incident via dashboard
+  □ All 7 agents process incident
+  □ Incident marked as resolved
+  □ Data persisted in database
+  □ Dashboard shows incident details
+
+Performance:
+  □ Single incident: < 30 seconds
+  □ 5 concurrent: reasonable time
+  □ No data loss
+  □ System remains responsive
+
+Scalability:
+  □ Multiple incidents handled
+  □ Event queue not backing up
+  □ Database handles load
+  □ API responsive under load
+
+
+🎓 ADVANCED SCENARIOS FOR EVALUATORS
+════════════════════════════════════════════════════════════════════════════
+
+Scenario 1: Peak Load Simulation
+  1. Open dashboard at: http://localhost:9000/demo-visualization.html
+  2. Trigger 10 incidents in rapid succession
+  3. Monitor system performance
+  4. Observe auto-scaling and load distribution
+
+Scenario 2: System Resilience
+  1. Start incident processing
+  2. Pause a service: docker pause sentinel-triage_worker-1
+  3. Try to trigger incident
+  4. Observe graceful degradation
+  5. Resume service: docker unpause sentinel-triage_worker-1
+  6. System recovers automatically
+
+Scenario 3: Data Persistence & Recovery
+  1. Trigger several incidents
+  2. Stop services: docker compose down
+  3. Restart: docker compose up -d
+  4. Query API: curl http://localhost:8001/api/incidents
+  5. Verify all incidents still present
+
+Scenario 4: Custom Payload Testing
+  1. Create custom incident JSON
+  2. Send via webhook API
+  3. Verify custom fields captured
+  4. Monitor processing
+  5. Verify results in database
+
+
+📋 COMMAND REFERENCE CARD
+════════════════════════════════════════════════════════════════════════════
+
+# Quick System Check
+./benchmark.sh -c
+
+# Run Single Incident
+./benchmark.sh -s
+
+# Run 5 Concurrent Incidents  
+./benchmark.sh -m 5
+
+# Run 10 Sequential Load Test
+./benchmark.sh -l
+
+# Run Complete Benchmark Suite
+./benchmark.sh -f
+
+# View Help
+./benchmark.sh -h
+
+# Manual Trigger
+./demo/seed_incident.sh
+
+# View Logs
+docker compose logs -f
+
+# Stop All Services
+docker compose down
+
+# Start All Services
+docker compose up -d
+
+# Restart Dashboard API
+docker compose restart dashboard_api
+
+
+🌐 DASHBOARD LINKS
+════════════════════════════════════════════════════════════════════════════
+
+🎯 Demo Visualization (RECOMMENDED):
+   http://localhost:9000/demo-visualization.html
+
+📊 Incidents Dashboard:
+   http://localhost:9000/dashboard.html
+
+🔌 REST API:
+   http://localhost:8001/api/incidents
+
+💡 Health Check:
+   http://localhost:8001/health
+
+
+💬 SUPPORT & DOCUMENTATION
+════════════════════════════════════════════════════════════════════════════
+
+For Quick Answers:        Read QUICK_START.md (2 min)
+For Setup Guide:          Read DEMO_SETUP.md (10 min)
+For Complete Reference:   Read EVALUATION_GUIDE.md (20 min)
+For Code Details:         Read README.md
+
+
+════════════════════════════════════════════════════════════════════════════
+
+               🚀 Ready to start evaluating Sentinel?
+
+               1. Open: http://localhost:9000/demo-visualization.html
+               2. Click: "🎯 Trigger Demo Incident"
+               3. Watch the magic happen!
+
+════════════════════════════════════════════════════════════════════════════
+
+EOF

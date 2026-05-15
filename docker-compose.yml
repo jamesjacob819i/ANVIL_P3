@@ -1,0 +1,237 @@
+version: "3.9"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: sentinel
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  webhook_ingress:
+    build:
+      context: .
+      dockerfile: services/webhook_ingress/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ENVIRONMENT: production
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  triage_worker:
+    build:
+      context: .
+      dockerfile: services/triage_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  diagnostics_worker:
+    build:
+      context: .
+      dockerfile: services/diagnostics_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      target_app:
+        condition: service_started
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  rca_worker:
+    build:
+      context: .
+      dockerfile: services/rca_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  remediation_worker:
+    build:
+      context: .
+      dockerfile: services/remediation_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  deployment_worker:
+    build:
+      context: .
+      dockerfile: services/deployment_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  postmortem_worker:
+    build:
+      context: .
+      dockerfile: services/postmortem_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      LINEAR_API_KEY: ${LINEAR_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  notifier_worker:
+    build:
+      context: .
+      dockerfile: services/notifier_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
+  dashboard_api:
+    build:
+      context: .
+      dockerfile: services/dashboard_api/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  target_app:
+    build:
+      context: ./demo/target_app/
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  postgres_data:

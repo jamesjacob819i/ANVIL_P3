@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Demo Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: rgba(0, 212, 255, 0.05);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1em;
+        }
+        
+        .demo-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .demo-section.full {
+            grid-template-columns: 1fr;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .card h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            padding-bottom: 10px;
+        }
+        
+        .card h3 {
+            color: #00d4ff;
+            font-size: 0.95em;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #1a1f3a;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .agent-pipeline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .agent {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .agent.pending {
+            opacity: 0.4;
+            border-color: rgba(0, 212, 255, 0.1);
+        }
+        
+        .agent.processing {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: rgba(255, 193, 7, 0.5);
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        .agent.completed {
+            background: rgba(76, 175, 80, 0.1);
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+        
+        .agent-name {
+            font-size: 0.85em;
+            color: #00d4ff;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .agent-status {
+            font-size: 0.75em;
+            color: #888;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+        }
+        
+        .arrow {
+            color: rgba(0, 212, 255, 0.3);
+            font-size: 1.5em;
+        }
+        
+        .log-container {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 0.85em;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 2px solid rgba(0, 212, 255, 0.3);
+            padding-left: 10px;
+        }
+        
+        .log-time {
+            color: #666;
+            font-size: 0.8em;
+        }
+        
+        .log-agent {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        
+        .log-success {
+            color: #4caf50;
+        }
+        
+        .log-error {
+            color: #ff6b6b;
+        }
+        
+        .log-warning {
+            color: #ffc107;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .stat {
+            background: rgba(0, 212, 255, 0.05);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        
+        .incident-status {
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.05);
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            margin: 15px 0;
+        }
+        
+        .status-key {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        
+        .status-value {
+            color: #e0e0e0;
+            margin-left: 10px;
+        }
+        
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #00d4ff;
+            font-size: 0.85em;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .benchmark-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .benchmark-card {
+            background: rgba(0, 212, 255, 0.05);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+        
+        .benchmark-title {
+            color: #00d4ff;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .benchmark-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #4caf50;
+        }
+        
+        .benchmark-unit {
+            font-size: 0.8em;
+            color: #888;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-top: 2px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 5px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background: rgba(76, 175, 80, 0.05);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h3 {
+            color: #4caf50;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Sentinel Demo Visualization</h1>
+            <p class="subtitle">Autonomous Production Incident Commander - Real-time Demonstration</p>
+        </header>
+        
+        <div class="instructions card">
+            <h3>🎯 Quick Start Guide</h3>
+            <ol>
+                <li>Click "<strong>Trigger Demo Incident</strong>" to start the demonstration</li>
+                <li>Watch as the incident flows through all agent stages in real-time</li>
+                <li>View detailed logs and metrics as each agent processes the incident</li>
+                <li>See the final benchmark results and timing statistics</li>
+                <li>Evaluators can trigger multiple incidents to see system performance</li>
+            </ol>
+        </div>
+        
+        <div class="demo-section">
+            <div class="card">
+                <h2>🎮 Demo Controls</h2>
+                <div class="controls">
+                    <button onclick="triggerDemoIncident()" id="trigger-btn">🎯 Trigger Demo Incident</button>
+                    <button onclick="resetDemo()">🔄 Reset</button>
+                    <button onclick="runBenchmark()">📊 Run Benchmark</button>
+                </div>
+                
+                <div class="stats" id="stats-container">
+                    <div class="stat">
+                        <div class="stat-label">INCIDENTS TRIGGERED</div>
+                        <div class="stat-value" id="incidents-count">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">AVG RESOLUTION TIME</div>
+                        <div class="stat-value" id="avg-time">-</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">SYSTEM STATUS</div>
+                        <div class="stat-value" id="system-status">✓ OK</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📋 Current Incident</h2>
+                <div id="current-incident">
+                    <div class="status-key">Status:</div>
+                    <div class="status-value">No incident triggered yet</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🔄 Agent Pipeline Processing</h2>
+            <div class="agent-pipeline" id="pipeline">
+                <div class="agent pending">
+                    <div class="agent-name">Triage</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="agent pending">
+                    <div class="agent-name">Diagnostics</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="agent pending">
+                    <div class="agent-name">RCA</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="agent pending">
+                    <div class="agent-name">Remediation</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="agent pending">
+                    <div class="agent-name">Deployment</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="agent pending">
+                    <div class="agent-name">Postmortem</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="agent pending">
+                    <div class="agent-name">Notifier</div>
+                    <div class="agent-status">Pending</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section full">
+            <div class="card">
+                <h2>📝 Live Event Log</h2>
+                <div class="log-container" id="log-container">
+                    <div class="log-entry">
+                        <span class="log-time">[READY]</span>
+                        System initialized and ready for demo. Click "Trigger Demo Incident" to begin.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section full">
+            <div class="card">
+                <h2>📊 Benchmark Results</h2>
+                <div id="benchmark-results" style="display: none;">
+                    <div class="benchmark-results" id="benchmark-container"></div>
+                </div>
+                <div id="no-benchmark" style="color: #888;">Run a benchmark to see performance metrics</div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <div class="card">
+                <h2>🔌 API Endpoints</h2>
+                <div class="code-block">
+                    <strong>Dashboard API:</strong><br>
+                    http://localhost:8001/api/incidents
+                </div>
+                <div class="code-block">
+                    <strong>Webhook Ingress:</strong><br>
+                    http://localhost:8000/webhooks/alert
+                </div>
+                <div class="code-block">
+                    <strong>Health Check:</strong><br>
+                    http://localhost:8001/health
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📌 Demo Incident Details</h2>
+                <div class="code-block">
+                    <strong>Service:</strong> target-app<br>
+                    <strong>Issue:</strong> High error rate on /checkout<br>
+                    <strong>Severity:</strong> P1 (Critical)<br>
+                    <strong>Root Cause:</strong> Coupon code validation bug
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:8001';
+        const WEBHOOK_URL = 'http://localhost:8000/webhooks/alert';
+        const TARGET_APP_URL = 'http://localhost:5000';
+        
+        let currentIncidentId = null;
+        let incidentCount = 0;
+        let benchmarkTimes = [];
+        const startTime = new Date();
+        
+        const agents = ['Triage', 'Diagnostics', 'RCA', 'Remediation', 'Deployment', 'Postmortem', 'Notifier'];
+        const agentTopics = {
+            'Triage': 'incident.new',
+            'Diagnostics': 'triage.done',
+            'RCA': 'diagnostics.done',
+            'Remediation': 'rca.done',
+            'Deployment': 'remediation.done',
+            'Postmortem': 'deployment.done',
+            'Notifier': 'postmortem.done'
+        };
+        
+        function log(message, type = 'info') {
+            const container = document.getElementById('log-container');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        async function triggerDemoIncident() {
+            const btn = document.getElementById('trigger-btn');
+            btn.disabled = true;
+            
+            try {
+                log('🎯 Generating normal traffic...', 'info');
+                
+                // Generate normal traffic
+                for (let i = 0; i < 20; i++) {
+                    fetch(`${TARGET_APP_URL}/checkout`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ coupon_code: 'SAVE10' })
+                    }).catch(() => {});
+                    await new Promise(r => setTimeout(r, 50));
+                }
+                
+                log('⚠️ Triggering failure scenario...', 'warning');
+                fetch(`${TARGET_APP_URL}/checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ coupon_code: 'BUGGY' })
+                }).catch(() => {});
+                
+                await new Promise(r => setTimeout(r, 500));
+                
+                log('<span class="spinner"></span>Firing alert webhook to Sentinel...', 'info');
+                
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: 'datadog',
+                        message: 'High error rate detected on /checkout endpoint - 25% error rate in last 5 minutes',
+                        severity: 'P1',
+                        service: 'target-app',
+                        environment: 'production'
+                    })
+                });
+                
+                if (response.ok) {
+                    incidentCount++;
+                    const startMs = new Date().getTime();
+                    currentIncidentId = 'INCIDENT-' + Date.now();
+                    
+                    log(`<span class="log-success">✓</span> Incident created: ${currentIncidentId}`, 'success');
+                    updateCurrentIncident(currentIncidentId);
+                    updateStats();
+                    
+                    // Simulate agent progression
+                    for (let i = 0; i < agents.length; i++) {
+                        await new Promise(r => setTimeout(r, 2000));
+                        updateAgentStatus(i, 'processing');
+                        log(`<span class="spinner"></span><span class="log-agent">${agents[i]}</span> agent processing...`, 'info');
+                        
+                        await new Promise(r => setTimeout(r, 2000));
+                        updateAgentStatus(i, 'completed');
+                        log(`<span class="log-success">✓</span> <span class="log-agent">${agents[i]}</span> completed`, 'success');
+                    }
+                    
+                    const duration = ((new Date().getTime() - startMs) / 1000).toFixed(2);
+                    benchmarkTimes.push(parseFloat(duration));
+                    log(`<span class="log-success">✓</span> Incident resolved in ${duration}s`, 'success');
+                    updateAvgTime();
+                } else {
+                    throw new Error('Webhook request failed');
+                }
+            } catch (error) {
+                log(`<span class="log-error">✗</span> Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        function updateAgentStatus(index, status) {
+            const agents = document.querySelectorAll('.agent');
+            const arrow = index * 2; // Account for arrows in the display
+            if (agents[index]) {
+                agents[index].className = 'agent ' + status;
+                const statusEl = agents[index].querySelector('.agent-status');
+                if (statusEl) {
+                    if (status === 'processing') {
+                        statusEl.textContent = 'Processing...';
+                    } else if (status === 'completed') {
+                        statusEl.textContent = 'Completed ✓';
+                    } else {
+                        statusEl.textContent = 'Pending';
+                    }
+                }
+            }
+        }
+        
+        function updateCurrentIncident(id) {
+            const container = document.getElementById('current-incident');
+            container.innerHTML = `
+                <div class="status-key">Incident ID:</div>
+                <div class="status-value" style="font-family: monospace;">${id}</div>
+                <div class="status-key" style="margin-top: 10px;">Service:</div>
+                <div class="status-value">target-app</div>
+                <div class="status-key" style="margin-top: 10px;">Status:</div>
+                <div class="status-value"><span class="spinner"></span>Processing</div>
+            `;
+        }
+        
+        function updateStats() {
+            document.getElementById('incidents-count').textContent = incidentCount;
+        }
+        
+        function updateAvgTime() {
+            if (benchmarkTimes.length > 0) {
+                const avg = (benchmarkTimes.reduce((a, b) => a + b) / benchmarkTimes.length).toFixed(2);
+                document.getElementById('avg-time').textContent = avg + 's';
+            }
+        }
+        
+        function resetDemo() {
+            currentIncidentId = null;
+            document.querySelectorAll('.agent').forEach(agent => {
+                agent.className = 'agent pending';
+                const statusEl = agent.querySelector('.agent-status');
+                if (statusEl) statusEl.textContent = 'Pending';
+            });
+            document.getElementById('current-incident').innerHTML = `
+                <div class="status-key">Status:</div>
+                <div class="status-value">Ready for new incident</div>
+            `;
+            log('🔄 Demo reset', 'info');
+        }
+        
+        async function runBenchmark() {
+            log('📊 Starting benchmark...', 'info');
+            const btn = event.target;
+            btn.disabled = true;
+            
+            benchmarkTimes = [];
+            const iterations = 3;
+            
+            for (let i = 0; i < iterations; i++) {
+                log(`📊 Benchmark run ${i + 1}/${iterations}...`, 'info');
+                resetDemo();
+                await new Promise(r => setTimeout(r, 500));
+                
+                const startMs = new Date().getTime();
+                
+                try {
+                    // Trigger incident
+                    const response = await fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            source: 'datadog',
+                            message: 'Benchmark test incident',
+                            severity: 'P1',
+                            service: 'target-app',
+                            environment: 'production'
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        // Simulate processing
+                        for (let j = 0; j < agents.length; j++) {
+                            await new Promise(r => setTimeout(r, 1500));
+                            updateAgentStatus(j, 'processing');
+                            await new Promise(r => setTimeout(r, 1500));
+                            updateAgentStatus(j, 'completed');
+                        }
+                        
+                        const duration = (new Date().getTime() - startMs) / 1000;
+                        benchmarkTimes.push(duration);
+                    }
+                } catch (error) {
+                    log(`<span class="log-error">✗</span> Benchmark iteration failed`, 'error');
+                }
+                
+                if (i < iterations - 1) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+            
+            // Display benchmark results
+            const min = Math.min(...benchmarkTimes).toFixed(2);
+            const max = Math.max(...benchmarkTimes).toFixed(2);
+            const avg = (benchmarkTimes.reduce((a, b) => a + b) / benchmarkTimes.length).toFixed(2);
+            
+            const resultsHtml = `
+                <div class="benchmark-card">
+                    <div class="benchmark-title">Average Time</div>
+                    <div class="benchmark-value">${avg}<span class="benchmark-unit">s</span></div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="benchmark-title">Minimum Time</div>
+                    <div class="benchmark-value">${min}<span class="benchmark-unit">s</span></div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="benchmark-title">Maximum Time</div>
+                    <div class="benchmark-value">${max}<span class="benchmark-unit">s</span></div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="benchmark-title">Total Runs</div>
+                    <div class="benchmark-value">${iterations}</div>
+                </div>
+            `;
+            
+            document.getElementById('benchmark-container').innerHTML = resultsHtml;
+            document.getElementById('benchmark-results').style.display = 'block';
+            document.getElementById('no-benchmark').style.display = 'none';
+            
+            log(`<span class="log-success">✓</span> Benchmark complete: Avg ${avg}s, Min ${min}s, Max ${max}s`, 'success');
+            btn.disabled = false;
+        }
+        
+        // Initial state
+        log('✓ System initialized and ready for demo', 'success');
+    </script>
+</body>
+</html>
