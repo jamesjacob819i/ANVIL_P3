@@ -8,7 +8,7 @@ from shared.tracing import trace
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 LINEAR_API_KEY = os.getenv("LINEAR_API_KEY", "")
-DEMO_REPO = os.getenv("DEMO_REPO", "jamesjacobi/sentinel-demo")
+DEMO_REPO = os.getenv("DEMO_REPO", "jamesjacob819i/ANVIL_P3")
 
 
 @trace("generate_postmortem")

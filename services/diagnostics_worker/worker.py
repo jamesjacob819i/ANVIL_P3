@@ -14,7 +14,7 @@ from agent import run_diagnostics
 
 async def handle_triage_done(event: SentinelEvent):
     print(f"[diagnostics_worker] Processing triage result for {event.incident_id}")
-    set_trace(event.trace_id)
+    set_trace(event.trace_id, event.parent_event_id, event.id)
 
     if not event.payload.get("autonomous_proceed", True):
         print(f"[diagnostics_worker] Skipping - triage said do not proceed autonomously")

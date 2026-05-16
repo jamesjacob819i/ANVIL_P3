@@ -3,7 +3,7 @@ import httpx
 from shared.tracing import trace
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-DEMO_REPO = os.getenv("DEMO_REPO", "jamesjacobi/sentinel-demo")
+DEMO_REPO = os.getenv("DEMO_REPO", "jamesjacob819i/ANVIL_P3")
 
 
 @trace("find_or_create_issue")

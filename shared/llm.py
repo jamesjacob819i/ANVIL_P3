@@ -4,6 +4,8 @@ import asyncio
 from typing import Optional, Any
 from pydantic import BaseModel
 
+from shared.tracing import trace
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
@@ -26,6 +28,7 @@ if GEMINI_API_KEY:
         print(f"[llm] Failed to init Gemini: {e}")
 
 
+@trace("llm_call", span_type="llm")
 async def llm_call(
     system_prompt: str,
     user_prompt: str,
@@ -99,6 +102,7 @@ async def llm_call(
     raise RuntimeError(f"LLM call failed after {max_retries + 1} attempts: {last_error}")
 
 
+@trace("llm_call_freeform", span_type="llm")
 async def llm_call_freeform(
     system_prompt: str,
     user_prompt: str,

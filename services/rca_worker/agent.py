@@ -62,7 +62,7 @@ Analyze this evidence and determine the root cause."""
 
         suspect_file = hypothesis.get("suspect_file")
         if suspect_file:
-            repo = evidence.get("service", "jamesjacobi/sentinel-demo")
+            repo = evidence.get("service", "jamesjacob819i/ANVIL_P3")
             source = await read_source_code(repo, suspect_file)
             search_results.append({"source": "github_source", "data": source})
 

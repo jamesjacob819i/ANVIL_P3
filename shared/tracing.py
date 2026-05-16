@@ -5,13 +5,14 @@ from datetime import datetime, timezone
 import asyncio
 
 OMIUM_API_KEY = os.getenv("OMIUM_API_KEY", "")
+OMIUM_PROJECT = os.getenv("OMIUM_PROJECT", "")
 
 try:
     import omium
     if OMIUM_API_KEY:
-        omium.init(api_key=OMIUM_API_KEY)
+        omium.init(api_key=OMIUM_API_KEY, project=OMIUM_PROJECT or None)
     else:
-        omium.init() # Use default env var if set
+        omium.init(project=OMIUM_PROJECT or None) # Use default env var if set
     _omium_available = True
 except Exception as e:
     _omium_available = False
@@ -38,7 +39,7 @@ class TraceContext:
 
 
 _current_trace: TraceContext | None = None
-
+_omium_tracer_token = None
 
 def get_trace() -> TraceContext:
     global _current_trace
@@ -47,14 +48,37 @@ def get_trace() -> TraceContext:
     return _current_trace
 
 
-def set_trace(trace_id: str):
-    global _current_trace
+def set_trace(trace_id: str, parent_event_id: str = None, current_event_id: str = None):
+    global _current_trace, _omium_tracer_token
     _current_trace = TraceContext(trace_id=trace_id)
+    
+    if _omium_available:
+        omium.set_execution_id(trace_id)
+        try:
+            from omium.integrations.tracer import OmiumTracer, _current_tracer
+            tracer = OmiumTracer(execution_id=trace_id, trace_id=trace_id)
+            _omium_tracer_token = _current_tracer.set(tracer)
+        except Exception as e:
+            print(f"Failed to set omium tracer: {e}")
 
 
 def reset_trace():
-    global _current_trace
+    global _current_trace, _omium_tracer_token
     _current_trace = None
+    
+    if _omium_available:
+        try:
+            from omium.integrations.tracer import _current_tracer, get_current_tracer
+            tracer = get_current_tracer()
+            if tracer:
+                tracer.flush()
+            if _omium_tracer_token:
+                _current_tracer.reset(_omium_tracer_token)
+                _omium_tracer_token = None
+            else:
+                _current_tracer.set(None)
+        except Exception as e:
+            print(f"Failed to reset omium tracer: {e}")
 
 
 def trace(name: str = None, span_type: str = "agent_step"):

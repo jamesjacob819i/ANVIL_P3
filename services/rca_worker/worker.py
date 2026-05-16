@@ -14,7 +14,7 @@ from agent import run_rca
 
 async def handle_diagnostics_done(event: SentinelEvent):
     print(f"[rca_worker] Processing diagnostics for {event.incident_id}")
-    set_trace(event.trace_id)
+    set_trace(event.trace_id, event.parent_event_id, event.id)
 
     agent_run_id = str(uuid.uuid4())
     await save_agent_run(agent_run_id, event.incident_id, "rca_worker", event.payload)

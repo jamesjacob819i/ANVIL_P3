@@ -202,6 +202,25 @@ services:
     env_file:
       - .env
 
+  orchestrator_worker:
+    build:
+      context: .
+      dockerfile: services/orchestrator_worker/Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+
   dashboard_api:
     build:
       context: .

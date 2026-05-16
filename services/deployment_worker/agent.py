@@ -1,9 +1,21 @@
+from pydantic import BaseModel, Field
+
 from shared.tracing import trace
+from shared.llm import llm_call
 from tools import trigger_deploy, monitor_metrics, rollback
 
 
 MONITOR_SECONDS = 120
-ERROR_RATE_THRESHOLD = 0.1
+
+
+class DeploymentDecision(BaseModel):
+    is_stable: bool = Field(description="Whether the deployment is stable based on the metrics")
+    requires_rollback: bool = Field(description="Whether a rollback is required due to high error rates or latency")
+    reasoning: str = Field(description="Explanation of the deployment health evaluation")
+
+
+SYSTEM_PROMPT = """You are a deployment monitoring agent. Your ONLY job is to review post-deployment metrics and decide if the deployment is healthy or if it requires a rollback.
+You must NOT attempt to fix code or diagnose the root cause. Focus purely on the metric snapshots. If the error rate averages above 0.1 (10%) or there are severe latency spikes, you should trigger a rollback."""
 
 
 @trace("deployment_agent")
@@ -18,32 +30,34 @@ async def run_deployment(incident_id: str, pr_info: dict) -> dict:
         }
 
     metrics_snapshots = await monitor_metrics(duration_seconds=MONITOR_SECONDS)
+    
+    user_prompt = f"""Review the following post-deployment metrics:
+{metrics_snapshots}
 
-    error_rates = [m.get("error_rate", 0) for m in metrics_snapshots if "error_rate" in m]
-    success = True
+Evaluate if the deployment is stable or needs a rollback."""
 
-    if error_rates:
-        avg_error_rate = sum(error_rates) / len(error_rates)
-        if avg_error_rate > ERROR_RATE_THRESHOLD:
-            rollback_result = await rollback()
-            success = False
-            final_metrics = {
-                "avg_error_rate": avg_error_rate,
-                "snapshots": metrics_snapshots,
-                "rolled_back": True,
-                "rollback_result": rollback_result,
-            }
-        else:
-            final_metrics = {
-                "avg_error_rate": avg_error_rate,
-                "snapshots": metrics_snapshots,
-                "rolled_back": False,
-                "stable": True,
-            }
+    decision = await llm_call(
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+        response_model=DeploymentDecision,
+    )
+
+    success = decision.get("is_stable", False) and not decision.get("requires_rollback", True)
+    
+    if decision.get("requires_rollback", True):
+        rollback_result = await rollback()
+        final_metrics = {
+            "decision": decision,
+            "snapshots": metrics_snapshots,
+            "rolled_back": True,
+            "rollback_result": rollback_result,
+        }
     else:
         final_metrics = {
-            "error": "No metrics collected",
+            "decision": decision,
             "snapshots": metrics_snapshots,
+            "rolled_back": False,
+            "stable": True,
         }
 
     return {

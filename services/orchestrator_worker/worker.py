@@ -12,13 +12,17 @@ bus = EventBus()
 
 
 async def handle_incidents_new(event: SentinelEvent):
-    incident_id = event.incident_id
-    service = event.payload.get("raw_payload", {}).get("service", "unknown")
-    message = event.payload.get("message", "No message")
-    source = event.payload.get("source", "unknown")
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        incident_id = event.incident_id
+        service = event.payload.get("raw_payload", {}).get("service", "unknown")
+        message = event.payload.get("message", "No message")
+        source = event.payload.get("source", "unknown")
 
-    title = f"🚨 Incident {incident_id[:8]} — {service}"
-    body = f"""## 🤖 Sentinel Autonomous Incident Commander
+        title = f"🚨 Incident {incident_id[:8]} — {service}"
+        body = f"""## 🤖 Sentinel Autonomous Incident Commander
 
 | Field | Value |
 |-------|-------|
@@ -41,20 +45,26 @@ async def handle_incidents_new(event: SentinelEvent):
 
 > _This issue is automatically managed by Sentinel AI. Updates will be posted as comments._
 """
-    issue_number = await find_or_create_issue(incident_id, title, body)
-    print(f"[orchestrator] Created/found issue #{issue_number} for incident {incident_id[:8]}")
+        issue_number = await find_or_create_issue(incident_id, title, body)
+        print(f"[orchestrator] Created/found issue #{issue_number} for incident {incident_id[:8]}")
+    finally:
+        reset_trace()
 
 
 async def handle_triage_done(event: SentinelEvent):
-    issue_number = await find_or_create_issue(
-        event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
-    )
-    severity = event.payload.get("severity", "Unknown")
-    reason = event.payload.get("reason", "")
-    proceed = event.payload.get("autonomous_proceed", False)
-    duplicate = event.payload.get("duplicate_incident_id")
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        issue_number = await find_or_create_issue(
+            event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
+        )
+        severity = event.payload.get("severity", "Unknown")
+        reason = event.payload.get("reason", "")
+        proceed = event.payload.get("autonomous_proceed", False)
+        duplicate = event.payload.get("duplicate_incident_id")
 
-    comment = f"""### ✅ Triage Completed
+        comment = f"""### ✅ Triage Completed
 
 | Field | Value |
 |-------|-------|
@@ -64,15 +74,25 @@ async def handle_triage_done(event: SentinelEvent):
 
 **Analysis:** {reason}
 """
-    await add_issue_comment(issue_number, comment)
+        await add_issue_comment(issue_number, comment)
+    finally:
+        reset_trace()
 
 
 async def handle_diagnostics_done(event: SentinelEvent):
-    issue_number = await find_or_create_issue(
-        event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
-    )
-    metrics = event.payload.get("metrics", {})
-    comment = f"""### 🔍 Diagnostics Completed
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        issue_number = await find_or_create_issue(
+            event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
+        )
+        metrics = event.payload.get("metrics", {})
+        llm_summary = event.payload.get("llm_summary", {})
+        summary_text = llm_summary.get("summary", "N/A")
+        severity = llm_summary.get("severity_assessment", "N/A")
+
+        comment = f"""### 🔍 Diagnostics Completed
 
 | Metric | Value |
 |--------|-------|
@@ -80,20 +100,30 @@ async def handle_diagnostics_done(event: SentinelEvent):
 | **Latency p99** | `{metrics.get('latency_p99', 'N/A')}ms` |
 | **Request Count** | `{metrics.get('request_count', 'N/A')}` |
 | **App Health** | `{event.payload.get('dependencies', {}).get('app_health', 'N/A')}` |
+
+**Agent Analysis:**
+- **Summary:** {summary_text}
+- **Severity Assessment:** {severity}
 """
-    await add_issue_comment(issue_number, comment)
+        await add_issue_comment(issue_number, comment)
+    finally:
+        reset_trace()
 
 
 async def handle_rca_done(event: SentinelEvent):
-    issue_number = await find_or_create_issue(
-        event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
-    )
-    confidence = event.payload.get("confidence", 0)
-    root_cause = event.payload.get("root_cause", "Unknown")
-    next_steps = event.payload.get("next_steps", "")
-    suspect_file = event.payload.get("suspect_file", "N/A")
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        issue_number = await find_or_create_issue(
+            event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
+        )
+        confidence = event.payload.get("confidence", 0)
+        root_cause = event.payload.get("root_cause", "Unknown")
+        next_steps = event.payload.get("next_steps", "")
+        suspect_file = event.payload.get("suspect_file", "N/A")
 
-    comment = f"""### 🧠 Root Cause Analysis Completed
+        comment = f"""### 🧠 Root Cause Analysis Completed
 
 | Field | Value |
 |-------|-------|
@@ -104,29 +134,35 @@ async def handle_rca_done(event: SentinelEvent):
 
 **Recommended Next Steps:** {next_steps}
 """
-    await add_issue_comment(issue_number, comment)
+        await add_issue_comment(issue_number, comment)
+    finally:
+        reset_trace()
 
 
 async def handle_remediation_done(event: SentinelEvent):
-    issue_number = await find_or_create_issue(
-        event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
-    )
-    pr_info = event.payload.get("pr", {})
-    patch = event.payload.get("patch", "")
-    branch = event.payload.get("branch", "N/A")
-    pr_url = pr_info.get("pr_url", "")
-    pr_error = pr_info.get("error", "")
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        issue_number = await find_or_create_issue(
+            event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
+        )
+        pr_info = event.payload.get("pr", {})
+        patch = event.payload.get("patch", "")
+        branch = event.payload.get("branch", "N/A")
+        pr_url = pr_info.get("pr_url", "")
+        pr_error = pr_info.get("error", "")
 
-    if pr_url:
-        pr_section = f"**Pull Request:** [{pr_url}]({pr_url})"
-    elif pr_error:
-        pr_section = f"**PR Error:** {pr_error}"
-    else:
-        pr_section = "**PR:** Pending"
+        if pr_url:
+            pr_section = f"**Pull Request:** [{pr_url}]({pr_url})"
+        elif pr_error:
+            pr_section = f"**PR Error:** {pr_error}"
+        else:
+            pr_section = "**PR:** Pending"
 
-    patch_section = f"```diff\n{patch[:1500]}\n```" if patch else "_No patch generated_"
+        patch_section = f"```diff\n{patch[:1500]}\n```" if patch else "_No patch generated_"
 
-    comment = f"""### 🔧 Remediation Generated
+        comment = f"""### 🔧 Remediation Generated
 
 | Field | Value |
 |-------|-------|
@@ -138,37 +174,53 @@ async def handle_remediation_done(event: SentinelEvent):
 **Patch:**
 {patch_section}
 """
-    await add_issue_comment(issue_number, comment)
+        await add_issue_comment(issue_number, comment)
+    finally:
+        reset_trace()
 
 
 async def handle_deployment_done(event: SentinelEvent):
-    issue_number = await find_or_create_issue(
-        event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
-    )
-    success = event.payload.get("success", False)
-    final_metrics = event.payload.get("final_metrics", {})
-    rolled_back = event.payload.get("rolled_back", False)
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        issue_number = await find_or_create_issue(
+            event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
+        )
+        success = event.payload.get("success", False)
+        final_metrics = event.payload.get("final_metrics", {})
+        rolled_back = final_metrics.get("rolled_back", False)
+        decision = final_metrics.get("decision", {})
+        reasoning = decision.get("reasoning", "N/A")
 
-    comment = f"""### 🚀 Deployment {"✅ Successful" if success else "⚠️ Rolled Back"}
+        comment = f"""### 🚀 Deployment {"✅ Successful" if success else "⚠️ Rolled Back"}
 
 | Field | Value |
 |-------|-------|
 | **Status** | `{'Deployed & Stable' if success and not rolled_back else 'Rolled Back' if rolled_back else 'Deployed'}` |
-| **Avg Error Rate** | `{final_metrics.get('avg_error_rate', 'N/A')}` |
-| **Monitoring Samples** | `{final_metrics.get('snapshots_count', 'N/A')}` |
+| **Monitoring Samples** | `{len(final_metrics.get('snapshots', []))}` |
+
+**Agent Evaluation:**
+{reasoning}
 """
-    await add_issue_comment(issue_number, comment)
+        await add_issue_comment(issue_number, comment)
+    finally:
+        reset_trace()
 
 
 async def handle_postmortem_done(event: SentinelEvent):
-    issue_number = await find_or_create_issue(
-        event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
-    )
-    commit_info = event.payload.get("commit", {})
-    postmortem_url = commit_info.get("url", "")
-    commit_sha = commit_info.get("commit_sha", "")
+    from shared.tracing import set_trace, reset_trace
+    set_trace(event.trace_id, event.parent_event_id, event.id)
+    
+    try:
+        issue_number = await find_or_create_issue(
+            event.incident_id, f"🚨 Incident {event.incident_id[:8]}", "Incident created"
+        )
+        commit_info = event.payload.get("commit", {})
+        postmortem_url = commit_info.get("url", "")
+        commit_sha = commit_info.get("commit_sha", "")
 
-    final_comment = f"""### 📝 Postmortem Published — Incident Resolved
+        final_comment = f"""### 📝 Postmortem Published — Incident Resolved
 
 A full post-mortem report has been generated and committed to the repository.
 
@@ -181,7 +233,23 @@ A full post-mortem report has been generated and committed to the repository.
 ✅ **This incident has been fully resolved by Sentinel AI.**
 _Pipeline: Ingress → Triage → Diagnostics → RCA → Remediation → Deployment → Postmortem_
 """
-    await close_issue(issue_number, final_comment)
+        await close_issue(issue_number, final_comment)
+        
+        from shared.tracing import _omium_available
+        if _omium_available:
+            from omium.integrations.core import score
+            try:
+                score(
+                    trace_id=event.trace_id,
+                    name="resolution_success",
+                    value=1.0,
+                    comment="Incident autonomously resolved end-to-end"
+                )
+                print(f"[orchestrator] Omium success score reported for trace {event.trace_id}")
+            except Exception as e:
+                print(f"[orchestrator] Failed to report score: {e}")
+    finally:
+        reset_trace()
 
 
 async def main():
