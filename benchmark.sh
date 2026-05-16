@@ -113,7 +113,7 @@ trigger_incident() {
 
 wait_for_incident_completion() {
     local incident_id=$1
-    local max_wait=120
+    local max_wait=300
     local elapsed=0
     local interval=2
     

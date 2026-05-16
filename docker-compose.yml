@@ -45,6 +45,7 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel123@postgres:5432/sentinel
       ENVIRONMENT: production
     depends_on:
       redis:

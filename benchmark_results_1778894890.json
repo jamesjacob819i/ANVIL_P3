@@ -1,0 +1,9 @@
+{
+  "benchmark_date": "2026-05-16T01:28:31Z",
+  "test_count": 1,
+  "average_time_seconds": 20.35,
+  "min_time_seconds": 20.35,
+  "max_time_seconds": 20.35,
+  "total_time_seconds": 20.35,
+  "individual_times": [20.35]
+}
