@@ -45,7 +45,16 @@ chmod +x demo/seed_incident.sh
 
 ### View the Dashboard
 
-Open **http://localhost:8001** for the API, or check each service's logs:
+To view the frontend dashboard, you can start the React app locally:
+
+```bash
+cd dashboard-ui
+npm install
+npm run dev
+```
+
+The UI will typically be available at **http://localhost:5173**. 
+Alternatively, open **http://localhost:8001** for the API directly, or check each service's logs:
 
 ```bash
 docker compose logs -f triage_worker
