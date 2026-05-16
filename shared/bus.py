@@ -22,12 +22,24 @@ class EventBus:
             f"redis://{REDIS_HOST}:{REDIS_PORT}",
             decode_responses=False,
         )
-        for topic in TOPICS:
+        last_error = None
+        for attempt in range(10):
             try:
-                await self.redis.xgroup_create(topic, CONSUMER_GROUP, mkstream=True)
-            except aioredis.ResponseError as e:
-                if "BUSYGROUP" not in str(e):
-                    raise
+                for topic in TOPICS:
+                    try:
+                        await self.redis.xgroup_create(topic, CONSUMER_GROUP, mkstream=True)
+                    except aioredis.ResponseError as e:
+                        if "BUSYGROUP" not in str(e):
+                            raise
+                return
+            except Exception as error:
+                last_error = error
+                if attempt == 9:
+                    break
+                await asyncio.sleep(min(2 ** attempt, 5))
+
+        if last_error is not None:
+            raise last_error
 
     async def publish(self, event: SentinelEvent) -> None:
         if self.redis is None:

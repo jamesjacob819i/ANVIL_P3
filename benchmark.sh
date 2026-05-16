@@ -120,7 +120,7 @@ wait_for_incident_completion() {
     print_info "Waiting for incident $incident_id to complete (max ${max_wait}s)..."
     
     while [ $elapsed -lt $max_wait ]; do
-        local incident=$(curl -s "$API_URL/api/incidents?limit=1" | grep -o "$incident_id" || true)
+           local incident=$(curl -s "$API_URL/api/incidents?limit=1" | grep -F "$incident_id" || true)
         
         if [ -n "$incident" ]; then
             local status=$(curl -s "$API_URL/api/incidents" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
