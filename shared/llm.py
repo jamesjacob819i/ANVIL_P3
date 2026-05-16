@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from typing import Optional, Any
 from pydantic import BaseModel
 
@@ -48,9 +49,17 @@ async def llm_call(
     last_error = None
     for attempt in range(max_retries + 1):
         try:
-            if gemini_client:
+            if groq_client:
+                completion = await groq_client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=messages,
+                    temperature=temperature,
+                    response_format={"type": "json_object"},
+                )
+                text = completion.choices[0].message.content
+            elif gemini_client:
                 model = gemini_client.GenerativeModel(
-                    "gemini-1.5-flash",
+                    "gemini-2.0-flash",
                     generation_config={
                         "temperature": temperature,
                         "response_mime_type": "application/json",
@@ -60,14 +69,6 @@ async def llm_call(
                 combined = f"{system_prompt}{format_instruction}\n\n{user_prompt}"
                 response = chat.send_message(combined)
                 text = response.text
-            elif groq_client:
-                completion = await groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=messages,
-                    temperature=temperature,
-                    response_format={"type": "json_object"},
-                )
-                text = completion.choices[0].message.content
             else:
                 raise RuntimeError("No LLM configured. Set GROQ_API_KEY or GEMINI_API_KEY.")
 
@@ -88,6 +89,11 @@ async def llm_call(
             last_error = e
             if attempt < max_retries:
                 print(f"[llm] Attempt {attempt + 1} failed: {e}, retrying...")
+                if "429" in str(e) or "quota" in str(e).lower():
+                    print("[llm] Rate limit hit. Sleeping for 60s...")
+                    await asyncio.sleep(60)
+                else:
+                    await asyncio.sleep(2)
                 continue
 
     raise RuntimeError(f"LLM call failed after {max_retries + 1} attempts: {last_error}")
@@ -104,21 +110,21 @@ async def llm_call_freeform(
     ]
 
     try:
-        if gemini_client:
+        if groq_client:
+            completion = await groq_client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=messages,
+                temperature=temperature,
+            )
+            return completion.choices[0].message.content
+        elif gemini_client:
             model = gemini_client.GenerativeModel(
-                "gemini-1.5-flash",
+                "gemini-2.0-flash",
                 generation_config={"temperature": temperature},
             )
             chat = model.start_chat()
             response = chat.send_message(f"{system_prompt}\n\n{user_prompt}")
             return response.text
-        elif groq_client:
-            completion = await groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages,
-                temperature=temperature,
-            )
-            return completion.choices[0].message.content
         else:
             raise RuntimeError("No LLM configured. Set GROQ_API_KEY or GEMINI_API_KEY.")
     except Exception as e:

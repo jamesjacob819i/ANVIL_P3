@@ -2,14 +2,20 @@ import os
 import uuid
 import functools
 from datetime import datetime, timezone
+import asyncio
 
 OMIUM_API_KEY = os.getenv("OMIUM_API_KEY", "")
 
 try:
-    from omium import OmiumClient
-    _client = OmiumClient(api_key=OMIUM_API_KEY) if OMIUM_API_KEY else None
-except ImportError:
-    _client = None
+    import omium
+    if OMIUM_API_KEY:
+        omium.init(api_key=OMIUM_API_KEY)
+    else:
+        omium.init() # Use default env var if set
+    _omium_available = True
+except Exception as e:
+    _omium_available = False
+    print(f"Failed to initialize omium: {e}")
 
 
 class TraceContext:
@@ -28,11 +34,6 @@ class TraceContext:
             "metadata": metadata or {},
         }
         self.spans.append(span)
-        if _client:
-            try:
-                _client.report_span(span)
-            except Exception:
-                pass
         return span
 
 
@@ -57,12 +58,17 @@ def reset_trace():
 
 
 def trace(name: str = None, span_type: str = "agent_step"):
+    # If omium is available, we can use it to wrap our functions.
+    # We still keep the original TraceContext for our own DB logging if necessary.
     def decorator(func):
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             trace_ctx = get_trace()
             start = datetime.now(timezone.utc)
             try:
+                if _omium_available:
+                    # Use omium directly inside if needed or just use the decorator pattern
+                    pass
                 result = await func(*args, **kwargs)
                 duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
                 trace_ctx.add_span(
@@ -104,12 +110,15 @@ def trace(name: str = None, span_type: str = "agent_step"):
                     metadata={"error": str(e)},
                 )
                 raise
-
+        
+        # Determine if we should wrap with omium
+        if _omium_available:
+            wrapped_func = omium.trace(name or func.__name__)(async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper)
+            return wrapped_func
+            
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 
     return decorator
 
-
-import asyncio

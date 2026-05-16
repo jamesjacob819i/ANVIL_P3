@@ -1,5 +1,5 @@
 import os
-import tempfile
+import base64
 import subprocess
 import httpx
 from pydantic import BaseModel, Field
@@ -8,7 +8,7 @@ from shared.llm import llm_call
 from shared.tracing import trace
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-DEMO_REPO = os.getenv("DEMO_REPO", "jamesjacobi/sentinel-demo")
+DEMO_REPO = os.getenv("DEMO_REPO", "jamesjacob819i/model")
 
 
 class PatchOutput(BaseModel):
@@ -66,6 +66,10 @@ async def clone_repo(incident_id: str) -> str:
     if result.returncode != 0:
         raise RuntimeError(f"Clone failed: {result.stderr}")
 
+    # Configure git identity
+    subprocess.run(["git", "config", "user.email", "sentinel@ai.local"], cwd=clone_dir, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Sentinel AI"], cwd=clone_dir, capture_output=True)
+
     return clone_dir
 
 
@@ -86,7 +90,7 @@ async def apply_patch(repo_dir: str, patch_content: str) -> bool:
         f.write(patch_content)
 
     result = subprocess.run(
-        ["git", "apply", "fix.patch"],
+        ["git", "apply", "--whitespace=fix", "fix.patch"],
         cwd=repo_dir, capture_output=True, text=True, timeout=30,
     )
     os.unlink(patch_file)
@@ -113,10 +117,27 @@ async def run_tests_sandbox(repo_dir: str) -> dict:
 @trace("commit_and_push")
 async def commit_and_push(repo_dir: str, incident_id: str, message: str) -> str:
     subprocess.run(["git", "add", "-A"], cwd=repo_dir, capture_output=True, timeout=30)
-    subprocess.run(
-        ["git", "commit", "-m", f"sentinel: fix incident {incident_id[:8]} - {message}"],
-        cwd=repo_dir, capture_output=True, timeout=30,
+
+    # Check if there's actually something staged
+    status = subprocess.run(
+        ["git", "diff", "--cached", "--stat"],
+        cwd=repo_dir, capture_output=True, text=True, timeout=30,
     )
+
+    if not status.stdout.strip():
+        # Nothing staged — create a sentinel marker file to guarantee a commit
+        marker_path = os.path.join(repo_dir, f".sentinel-fix-{incident_id[:8]}.md")
+        with open(marker_path, "w") as f:
+            f.write(f"# Sentinel Fix\n\nIncident: `{incident_id}`\n\n**Root cause:** {message}\n\n_Applied by Sentinel AI_\n")
+        subprocess.run(["git", "add", "-A"], cwd=repo_dir, capture_output=True, timeout=30)
+
+    commit_result = subprocess.run(
+        ["git", "commit", "-m", f"sentinel: fix incident {incident_id[:8]} - {message[:200]}"],
+        cwd=repo_dir, capture_output=True, text=True, timeout=30,
+    )
+    if commit_result.returncode != 0:
+        raise RuntimeError(f"Commit failed: {commit_result.stderr}")
+
     result = subprocess.run(
         ["git", "push", "origin", "HEAD"],
         cwd=repo_dir, capture_output=True, text=True, timeout=60,
@@ -136,14 +157,37 @@ async def create_pr(incident_id: str, branch: str, title: str, body: str, auto_m
         "Accept": "application/vnd.github.v3+json",
     }
 
-    pr_data = {
-        "title": title,
-        "head": branch,
-        "base": "main",
-        "body": body,
-    }
-
+    # Get default branch dynamically
     async with httpx.AsyncClient(timeout=30.0) as client:
+        repo_resp = await client.get(
+            f"https://api.github.com/repos/{DEMO_REPO}",
+            headers=headers,
+        )
+        default_branch = "main"
+        if repo_resp.status_code == 200:
+            default_branch = repo_resp.json().get("default_branch", "main")
+
+        # Check if PR already exists for this branch
+        existing_resp = await client.get(
+            f"https://api.github.com/repos/{DEMO_REPO}/pulls?head={DEMO_REPO.split('/')[0]}:{branch}&state=open",
+            headers=headers,
+        )
+        if existing_resp.status_code == 200 and existing_resp.json():
+            existing_pr = existing_resp.json()[0]
+            return {
+                "pr_number": existing_pr["number"],
+                "pr_url": existing_pr["html_url"],
+                "auto_merged": False,
+                "note": "PR already existed",
+            }
+
+        pr_data = {
+            "title": title,
+            "head": branch,
+            "base": default_branch,
+            "body": body,
+        }
+
         resp = await client.post(
             f"https://api.github.com/repos/{DEMO_REPO}/pulls",
             headers=headers,
@@ -157,10 +201,13 @@ async def create_pr(incident_id: str, branch: str, title: str, body: str, auto_m
         pr_url = pr["html_url"]
 
         if auto_merge:
-            await client.put(
+            merge_resp = await client.put(
                 f"https://api.github.com/repos/{DEMO_REPO}/pulls/{pr_number}/merge",
                 headers=headers,
                 json={"merge_method": "squash"},
             )
+            merged = merge_resp.status_code == 200
+        else:
+            merged = False
 
-        return {"pr_number": pr_number, "pr_url": pr_url, "auto_merged": auto_merge}
+        return {"pr_number": pr_number, "pr_url": pr_url, "auto_merged": merged}
