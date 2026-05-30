@@ -77,6 +77,12 @@ docker compose logs -f remediation_worker
 | notifier_worker | ALL topics | — | Slack notifications |
 | dashboard_api | ALL topics | — | WebSocket + REST API |
 
+## Database Schema
+
+- `incidents` — Incident records with status tracking
+- `events` — Event log with causal parent_event_id chain
+- `agent_runs` — Agent execution history with inputs/outputs
+
 ## Event Topics
 
 - `incidents.new` — New incident alert
@@ -88,11 +94,6 @@ docker compose logs -f remediation_worker
 - `deployment.done` — Deployment result with metrics
 - `postmortem.done` — Postmortem document generated
 
-## Database Schema
-
-- `incidents` — Incident records with status tracking
-- `events` — Event log with causal parent_event_id chain
-- `agent_runs` — Agent execution history with inputs/outputs
 
 ## Project Structure
 
